@@ -10,10 +10,10 @@ csv = "1.1"
 ndarray = "0.13.1"
 ndarray-csv = " 0.5.1"
 
-[[bin]]
+[[example]]
 name = "day1"
 path = "src/day1.rs"
 
-[[bin]]
+[[example]]
 name = "day2"
 path = "src/day2.rs"
