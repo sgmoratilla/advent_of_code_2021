@@ -9,6 +9,7 @@ edition = "2021"
 csv = "1.1"
 ndarray = "0.13.1"
 ndarray-csv = " 0.5.1"
+sscanf = "0.1.4"
 
 [[example]]
 name = "day1"
@@ -25,3 +26,7 @@ path = "src/day3.rs"
 [[example]]
 name = "day4"
 path = "src/day4.rs"
+
+[[example]]
+name = "day5"
+path = "src/day5.rs"
