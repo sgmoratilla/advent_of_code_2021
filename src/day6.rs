@@ -4,6 +4,9 @@ use std::io::{BufRead, BufReader};
 
 fn main() {
     let fish_school = read_file("src/day6.txt");
+    let fish_number = evolve_fast(&fish_school, 256);
+
+    println!("{}", fish_number);
 
 }
 
@@ -28,21 +31,41 @@ fn evolve(fish_school: &Vec<u8>, generations: u32) -> u64 {
 }
 
 fn evolve_fast(fish_school: &Vec<u8>, generations: u32) -> u64 {
+    let mut status = [0 as u64; 9];
+
+    fish_school.iter().for_each(|f| status[*f as usize] += 1);
+
+    for g in 1..=generations {
+        let new = status[0];
+        for i in 1..status.len() {
+            status[i-1] = status[i];
+        }
+        status[6] += new;
+        status[8] = new;
+
+        println!("g{} {}", g , status.iter().sum::<u64>());
+    }
+
+    return status.iter().sum();
+}
+
+fn evolve_recursive(fish_school: &Vec<u8>, generations: u32) -> u64 {
 
     let mut n_fishes : u64 =  0;
     for f in fish_school.iter() {
-        n_fishes += count_offspring(*f as i32, generations as i32);
+        n_fishes += count_offspring(*f as i32, 0, generations as i32);
     }
 
     return n_fishes;
 }
 
-fn count_offspring(time_to_reproduce: i32, generations: i32) -> u64 {
-    let reproduces = time_to_reproduce < generations;
+fn count_offspring(time_to_reproduce: i32, generations: i32, max_generations: i32) -> u64 {
+    let time_remaining = max_generations - generations;
+    let reproduces = time_to_reproduce < time_remaining;
     if reproduces {
         return
-            count_offspring(6, generations - 6) +
-            count_offspring(8, generations - 8);
+            count_offspring(6, generations + time_to_reproduce + 1, max_generations) +
+            count_offspring(8, generations + time_to_reproduce + 1, max_generations);
     }
 
     return 1;
@@ -68,7 +91,7 @@ fn reader_to_data<R: io::Read>(reader: &mut BufReader<R>) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use std::io::{BufReader};
-    use crate::{evolve, evolve_fast, read_file, reader_to_data};
+    use crate::{evolve, evolve_fast, evolve_recursive, read_file, reader_to_data};
 
     #[test]
     fn example1() {
@@ -119,52 +142,76 @@ mod tests {
         let mut reader = BufReader::new(data.as_bytes());
         let numbers = reader_to_data(&mut reader);
 
-        let fish_number = evolve_fast(&numbers, 6);
+        let fish_number = evolve_recursive(&numbers, 6);
         assert_eq!(fish_number, 1);
 
-        let fish_number = evolve_fast(&numbers, 7);
+        let fish_number = evolve_recursive(&numbers, 7);
         assert_eq!(fish_number, 2);
 
-        let fish_number = evolve_fast(&numbers, 12);
+        let fish_number = evolve_recursive(&numbers, 12);
         assert_eq!(fish_number, 2);
 
-        let fish_number = evolve_fast(&numbers, 13);
+        let fish_number = evolve_recursive(&numbers, 13);
         assert_eq!(fish_number, 2);
 
-        let fish_number = evolve_fast(&numbers, 14);
+        let fish_number = evolve_recursive(&numbers, 14);
         assert_eq!(fish_number, 3);
 
-        let fish_number = evolve_fast(&numbers, 15);
+        let fish_number = evolve_recursive(&numbers, 15);
         assert_eq!(fish_number, 3);
 
-        let fish_number = evolve_fast(&numbers, 16);
+        let fish_number = evolve_recursive(&numbers, 16);
         assert_eq!(fish_number, 3+1);
-
-        return;
-
-        //let fish_number = evolve_fast(&numbers, 256);
-        //assert_eq!(fish_number, 2);
 
         let data = "6,3";
 
         let mut reader = BufReader::new(data.as_bytes());
         let numbers = reader_to_data(&mut reader);
-        let fish_number = evolve_fast(&numbers, 6);
+        let fish_number = evolve_recursive(&numbers, 6);
         assert_eq!(fish_number, 1+2);
 
-        let fish_number = evolve_fast(&numbers, 7);
+        let fish_number = evolve_recursive(&numbers, 7);
         assert_eq!(fish_number, 2+2);
 
-        let fish_number = evolve_fast(&numbers, 10);
+        let fish_number = evolve_recursive(&numbers, 10);
         assert_eq!(fish_number, 2+2);
     }
 
     #[test]
-    fn example2() {
+    fn example_recursive() {
         let data = "3,4,3,1,2";
 
         let mut reader = BufReader::new(data.as_bytes());
         let numbers = reader_to_data(&mut reader);
+
+        let fish_number = evolve_recursive(&numbers, 18);
+        assert_eq!(fish_number, 26);
+
+        let fish_number = evolve_recursive(&numbers, 80);
+        assert_eq!(fish_number, 5934);
+
+        let fish_number = evolve_fast(&numbers, 18);
+        assert_eq!(fish_number, 26);
+
+        let fish_number = evolve_fast(&numbers, 80);
+        assert_eq!(fish_number, 5934);
+    }
+
+    #[test]
+    fn example_fast() {
+        let data = "3,4,3,1,2";
+
+        let mut reader = BufReader::new(data.as_bytes());
+        let numbers = reader_to_data(&mut reader);
+
+        let fish_number = evolve_fast(&numbers, 1);
+        assert_eq!(fish_number, 5);
+
+        let fish_number = evolve_fast(&numbers, 2);
+        assert_eq!(fish_number, 6);
+
+        let fish_number = evolve_fast(&numbers, 3);
+        assert_eq!(fish_number, 7);
 
         let fish_number = evolve_fast(&numbers, 18);
         assert_eq!(fish_number, 26);
@@ -178,9 +225,9 @@ mod tests {
     fn day5b() {
         let numbers = read_file("src/day6.txt");
 
-        let fish_number = evolve(&numbers, 256);
+        let fish_number = evolve_fast(&numbers, 256);
 
-        assert_eq!(fish_number, 350917);
+        assert_eq!(fish_number, 1592918715629);
     }
 }
 
