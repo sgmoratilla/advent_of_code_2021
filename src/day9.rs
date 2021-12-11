@@ -71,7 +71,7 @@ fn basins(map: &Array2<u8>) -> Array2<u8> {
     println!("{}", map);
 
     for ((i, j), value) in map.indexed_iter() {
-        basin[[i, j]] = if lower_than_any_adjacent(i, j, map) { 1 } else { 0 };
+        basin[[i, j]] = if map[[i, j]] != 9 { 1 } else { 0 };
     };
 
     println!("{}", basin);
@@ -91,21 +91,6 @@ fn risk_level(map: &Array2<u8>) -> u32 {
     println!("{}", valley);
 
     return valley.sum();
-}
-
-fn lower_than_any_adjacent(i: usize, j :usize, map: &Array2<u8>) -> bool {
-    let value = map[(i, j)];
-
-    let i = i as i8;
-    let j = j as i8;
-
-    let is_lower_than_adjacents=
-        is_lower_than_adjacents(value, i, j+1 , map, false) ||
-        is_lower_than_adjacents(value, i, j-1, map, false) ||
-        is_lower_than_adjacents(value, i+1, j, map, false) ||
-        is_lower_than_adjacents(value, i-1, j, map, false);
-
-    return is_lower_than_adjacents;
 }
 
 fn lower_than_all_adjacents(i: usize, j :usize, map: &Array2<u8>) -> bool {
@@ -198,11 +183,11 @@ mod tests {
     }
 
     #[test]
-    fn day8a() {
+    fn day9a() {
         let data = read_file("src/day9.txt");
 
         let level = risk_level(&data);
-        assert_eq!(level, 26);
+        assert_eq!(level, 491);
     }
 
     #[test]
@@ -222,7 +207,7 @@ mod tests {
     }
 
     #[test]
-    fn day8b() {
+    fn day9b() {
         let data = read_file("src/day9.txt");
 
         let basin = basin_size(&data);
