@@ -5,220 +5,212 @@ use std::io::{BufRead, BufReader};
 use ndarray::{Array2, Zip};
 
 fn main() {
-    let mut data = read_file("src/day10.txt");
-
+    let mut data = read_file("src/day11.txt");
+    let step = first_sync(&data);
+    println!("{}", step);
 }
 
-fn find_completion_points(lines: &Vec<String>) -> u64 {
-    let mut points = Vec::new();
+fn first_sync(energy: &Array2<u8>) -> u32 {
+    let mut energy = energy.clone();
 
-    for l in lines {
-        println!("{}", l);
-        let mut stack = find_valid_stacks(l);
-        stack.reverse();
-        let mut stack = stack.iter().map(|s| closing(*s)).collect::<Vec<char>>();
-        if !stack.is_empty() {
-            let p = stack_points(&stack);
-            points.push(p);
+    let size = energy.nrows() * energy.ncols();
+    let size = size as u32;
+
+    let mut current_step = 0;
+    let mut keep_going = true;
+    while keep_going {
+        let current_flashes = step(&mut energy);
+
+        if current_flashes == size {
+            keep_going = false;
         }
+        current_step += 1;
     }
 
-    points.sort();
-
-    let middle = points.len() / 2;
-
-    return points[middle];
-}
-
-fn stack_points(stack: &Vec<char>) -> u64 {
-    let mut p = 0 ;
-
-    for c in stack {
-        p = p * 5;
-        p = p + fixing_points(*c) as u64;
-    }
-
-    return p;
-}
-
-fn fixing_points(c: char) -> u32 {
-    match c {
-        ')' => 1,
-        ']' => 2,
-        '}' => 3,
-        '>' => 4,
-        _ => process::abort()
-    }
+    return current_step;
 }
 
 
-fn find_valid_stacks(line: &String) -> Vec<char> {
-    let mut stack = Vec::<char>::new();
-    for c in line.chars() {
-        if is_opening(c) {
-            stack.push(c);
-        } else {
-            let last = stack.pop();
-            if last.is_none() || closing(last.unwrap()) != c {
-                return Vec::new();
+fn n_flashes(energy: &Array2<u8>, steps: u32) -> u32 {
+    println!("{}", energy);
+
+    let mut energy = energy.clone();
+    let mut flashes = 0;
+    for i in 0..steps {
+        let current_flashes = step(&mut energy);
+        println!("{}", energy);
+
+        flashes += current_flashes;
+    }
+
+    return flashes;
+}
+
+fn step(energy: &mut Array2<u8>) -> u32 {
+    let mut flashes = 0;
+
+    energy.iter_mut().for_each(|x| *x = *x + 1);
+
+    for i in 0..energy.ncols() {
+        for j in 0..energy.nrows() {
+            if energy[[i, j]] > 9 {
+                let new_flashes = flash(energy, i as i32, j as i32);
+                flashes += new_flashes;
+
             }
         }
     }
 
-    return stack;
+    return flashes;
 }
 
-fn points(lines: &Vec<String>) -> u32 {
+fn flash(energy: &mut Array2<u8>, i: i32, j: i32) -> u32 {
+    let mut flashes = 1;
+    energy[[i as usize, j as usize]] = 0;
 
-    let points =
-        find_illegal_chars(lines).iter().map(|&x| points_char(x)).sum();
+    for x in i-1..=i+1 {
+        for y in j-1..=j+1 {
+            if x == i && y == j {
+                continue;
+            }
 
-    return points;
-}
+            if !is_valid(energy, x, y) {
+                continue;
+            }
 
-fn points_char(c: char) -> u32 {
-    match c {
-        ')' => 3,
-        ']' => 57,
-        '}' => 1197,
-        '>' => 25137,
-        _ => process::abort()
-    }
-}
+            let x = x as usize;
+            let y = y as usize;
 
-fn find_illegal_chars(lines: &Vec<String>) -> Vec<char> {
-    let mut invalid = Vec::new();
-    for l in lines {
-        println!("{}", l);
-        let first = find_first_illegal_char(l);
-        if first.is_some() {
-            invalid.push(first.unwrap());
+            // it has just flashed, it is resting.
+            if energy[(x, y)] == 0 {
+                continue;
+            }
+
+            energy[(x, y)] += 1;
+            if energy[(x, y)] > 9 {
+                flashes += flash(energy, x as i32, y as i32);
+            }
         }
     }
 
-    return invalid;
+    return flashes;
 }
 
-fn find_first_illegal_char(line: &String) -> Option<char> {
-    let mut stack = Vec::<char>::new();
-    for c in line.chars() {
-        if is_opening(c) {
-            stack.push(c);
-        } else {
-            let last = stack.pop();
-            if last.is_none() || closing(last.unwrap()) != c {
-                return Some(c);
-            }
-         }
+fn is_valid(energy: &mut Array2<u8>, i: i32, j: i32) -> bool {
+    let ui = i as usize;
+    let uj = j as usize;
+
+    if i < 0 || ui >= energy.nrows() {
+        return false;
     }
 
-    return None;
-}
-
-fn is_opening(c: char) -> bool {
-    return ['{', '[', '(', '<'].contains(&c);
-}
-
-fn opening(c: char) -> char {
-    match c {
-        '}' => '{',
-        ']' => '[',
-        ')' => '(',
-        '>' => '<',
-        _ => process::abort()
+    if j < 0 || uj >= energy.ncols() {
+        return false;
     }
+
+    return true;
 }
 
-fn closing(c: char) -> char {
-    match c {
-        '{' => '}',
-        '[' => ']',
-        '(' => ')',
-        '<' => '>',
-        _ => process::abort()
-    }
-}
-
-fn read_file(path: &str) -> Vec<String> {
+fn read_file(path: &str) -> Array2<u8> {
     let file = File::open(path).unwrap();
     let mut reader = BufReader::new(file);
 
     return reader_to_data(&mut reader);
 }
 
-fn reader_to_data<R: io::Read>(reader: &mut BufReader<R>) -> Vec<String> {
+fn reader_to_data<R: io::Read>(reader: &mut BufReader<R>) -> Array2<u8> {
     let lines =  reader.lines().peekable();
 
     let mut data = Vec::new();
     for l in lines {
         let l = l.unwrap();
 
+        let l = l.chars().map(|x| x.to_string().parse::<u8>().unwrap()).collect::<Vec<u8>>();
         data.push(l);
     }
 
-    return data;
+    return vec_to_array2(&data);
 }
+
+fn vec_to_array2(data : &Vec<Vec<u8>>) -> Array2<u8> {
+    let n =
+        if data.is_empty() {
+            0
+        } else {
+            data[0].len()
+        };
+
+    let mut arr = Array2::<u8>::default((data.len(), n));
+    for i in 0..data.len() {
+        for j in 0..n {
+            arr[(i, j)] = (*data)[i][j];
+        }
+    }
+    return arr;
+}
+
 
 #[cfg(test)]
 mod tests {
     use std::io::{BufReader};
-    use crate::{find_completion_points, points, read_file, reader_to_data};
+    use crate::{first_sync, n_flashes, read_file, reader_to_data};
 
     #[test]
     fn example1() {
         let data =
-            "[({(<(())[]>[[{[]{<()<>>
-[(()[<>])]({[<{<<[]>>(
-{([(<{}[<>[]}>{[]{[(<()>
-(((({<>}<{<{<>}{[]{[]{}
-[[<[([]))<([[{}[[()]]]
-[{[{({}]{}}([{[{{{}}([]
-{<[[]]>}<{[{[{[]{()[[[]
-[<(<(<(<{}))><([]([]()
-<{([([[(<>()){}]>(<<{{
-<{([{{}}[<[[[<>{}]]]>[]]";
+            "5483143223
+2745854711
+5264556173
+6141336146
+6357385478
+4167524645
+2176841721
+6882881134
+4846848554
+5283751526";
 
         let mut reader = BufReader::new(data.as_bytes());
         let data = reader_to_data(&mut reader);
 
-        let points = points(&data);
-        assert_eq!(points, 26397);
+        let flashes = n_flashes(&data, 100);
+        assert_eq!(flashes, 1656);
     }
 
     #[test]
-    fn day10a() {
-        let data = read_file("src/day10.txt");
+    fn day11a() {
+        let data = read_file("src/day11.txt");
 
-        let points = points(&data);
-        assert_eq!(points, 436497);
+        let flashes = n_flashes(&data, 100);
+        assert_eq!(flashes, 1739);
     }
 
     #[test]
     fn example2() {
         let data =
-            "[({(<(())[]>[[{[]{<()<>>
-[(()[<>])]({[<{<<[]>>(
-{([(<{}[<>[]}>{[]{[(<()>
-(((({<>}<{<{<>}{[]{[]{}
-[[<[([]))<([[{}[[()]]]
-[{[{({}]{}}([{[{{{}}([]
-{<[[]]>}<{[{[{[]{()[[[]
-[<(<(<(<{}))><([]([]()
-<{([([[(<>()){}]>(<<{{
-<{([{{}}[<[[[<>{}]]]>[]]";
+            "5483143223
+2745854711
+5264556173
+6141336146
+6357385478
+4167524645
+2176841721
+6882881134
+4846848554
+5283751526";
 
         let mut reader = BufReader::new(data.as_bytes());
         let data = reader_to_data(&mut reader);
 
-        let points = find_completion_points(&data);
-        assert_eq!(points, 288957);
+        let step = first_sync(&data);
+        assert_eq!(step, 195);
     }
 
     #[test]
-    fn day10b() {
-        let data = read_file("src/day10.txt");
+    fn day11b() {
+        let data = read_file("src/day11.txt");
 
-        let points = find_completion_points(&data);
-        assert_eq!(points, 288957);
+        let step = first_sync(&data);
+        assert_eq!(step, 324);
     }
+
 }
