@@ -14,49 +14,91 @@ fn main() {
 }
 
 fn evolve_fast(characters: &Vec<char>, rules: &HashMap<[char;2], char>, steps: usize) -> u64 {
-    let mut counts = BTreeMap::<[char;2], u64>::new();
+    let mut counts = BTreeMap::<char, u64>::new();
+    let mut pairs = BTreeMap::<[char;2], u64>::new();
 
     for i in (1..characters.len()).rev() {
         let left = characters[i-1];
         let right = characters[i];
-        counts.insert([left, right], 1);
+        pairs.insert([left, right], 1);
     }
 
-    let mut new_counts = counts.clone();
-
-    println!("{:?}", new_counts);
+    let mut new_pairs = pairs.clone();
     for i in 0..steps {
-        new_counts = evolve_step_fast(&new_counts, rules);
-        println!("{} | {:?}", i, new_counts);
+        new_pairs = evolve_step_fast(&new_pairs, rules);
+        println!("{} | {:?}", i, new_pairs);
     }
 
-    let max = new_counts.iter().max_by_key(|(_, v)| *v).unwrap();
-    let min = new_counts.iter().min_by_key(|(_, v)| *v).unwrap();
+
+    for i in new_pairs.iter() {
+        let repetitions = i.1;
+
+        let c = *rules.get(i.0).unwrap();
+
+        let v = *counts.entry(c).or_insert(0);
+        counts.insert(c, v + repetitions);
+    }
+
+    let max = counts.iter().max_by_key(|(_, v)| *v).unwrap();
+    let min = counts.iter().min_by_key(|(_, v)| *v).unwrap();
 
     println!("{} {}", max.1, min.1);
     return max.1 - min.1;
 }
 
 
-fn evolve_step_fast(counts: &BTreeMap::<[char;2], u64>, rules: &HashMap<[char;2], char>) -> BTreeMap::<[char;2], u64> {
-    let mut new_counts = (*counts).clone();
+fn evolve_step_fast(pairs: &BTreeMap::<[char;2], u64>, rules: &HashMap<[char;2], char>) -> BTreeMap::<[char;2], u64> {
+    let mut new_pairs = (*pairs).clone();
 
-    for i in counts.iter() {
+    for i in pairs.iter() {
         let left = i.0[0];
         let right = i.0[1];
         let count = i.1;
 
         let new_char = *rules.get(i.0).unwrap();
-        new_counts.remove(i.0);
+        new_pairs.remove(i.0);
 
-        let old_left = *new_counts.entry([left, new_char]).or_insert(0);
-        let old_right = *new_counts.entry([new_char, right]).or_insert(0);
+        let old_left = *new_pairs.entry([left, new_char]).or_insert(0);
+        let old_right = *new_pairs.entry([new_char, right]).or_insert(0);
 
-        new_counts.insert([left, new_char], old_left + count);
-        new_counts.insert([new_char, right], old_right + count);
+        new_pairs.insert([left, new_char], old_left + count);
+        new_pairs.insert([new_char, right], old_right + count);
     }
 
-    return new_counts
+    return new_pairs
+}
+
+fn evolve_recursive(characters: &Vec<char>, rules: &HashMap<[char;2], char>, steps: usize) -> u64 {
+    let mut counts = BTreeMap::<char, u64>::new();
+
+    for i in 1..characters.len() {
+        let left = characters[i-1];
+        let right = characters[i];
+        evolve_step_recursive([left, right], &mut counts, rules, 0, steps);
+    }
+
+    let max = counts.iter().max_by_key(|(_, v)| *v).unwrap();
+    let min = counts.iter().min_by_key(|(_, v)| *v).unwrap();
+
+    println!("{} {}", max.1, min.1);
+    return max.1 - min.1;
+}
+
+fn evolve_step_recursive(pair: [char; 2], counts: &mut BTreeMap::<char, u64>, rules: &HashMap<[char;2], char>, depth: usize, max_depth: usize)  {
+    // println!("{} {}{}", depth, pair[0], pair[1]);
+    if depth == max_depth {
+        let c = *rules.get(&pair).unwrap();
+        let n = *counts.entry(c).or_insert(0);
+        counts.insert(c, n + 1);
+        return;
+    }
+
+    let c = rules.get(&pair).unwrap();
+    let left = [pair[0], *c];
+    evolve_step_recursive(left, counts, rules, depth + 1, max_depth);
+
+    let right = [*c, pair[1]];
+    evolve_step_recursive(right, counts, rules, depth + 1, max_depth);
 }
 
 fn evolve_slow(characters: &Vec<char>, rules: &HashMap<[char;2], char>, steps: usize) -> usize {
